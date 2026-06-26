@@ -6,6 +6,8 @@ import { WYSIWYGEditor } from './components/WYSIWYGEditor';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { Edit3, Code } from 'lucide-react';
 
+const MARKDOWN_STORAGE_KEY = 'markflow-markdown';
+
 const INITIAL_MARKDOWN = `# Welcome to MarkFlow 🚀
 
 MarkFlow is a premium, split-screen **Markdown WYSIWYG Editor** designed to supercharge your Astro writing workflow. 
@@ -82,17 +84,21 @@ turndownService.addRule('taskListItem', {
     const checkPart = isChecked ? '[x] ' : '[ ] ';
     
     // Clean text of the checkboxes
-    let text = content.replace('[x]', '').replace('[ ]', '').replace('[x] ', '').replace('[ ] ', '').trim();
+    const text = content.replace('[x]', '').replace('[ ]', '').replace('[x] ', '').replace('[ ] ', '').trim();
     return `- ${checkPart}${text}\n`;
   }
 });
 
-// Parse initial markdown
-const initialHtml = marked.parse(INITIAL_MARKDOWN, { async: false }) as string;
+const getInitialMarkdown = () => {
+  const savedMarkdown = localStorage.getItem(MARKDOWN_STORAGE_KEY);
+  return savedMarkdown ?? INITIAL_MARKDOWN;
+};
 
 const App: React.FC = () => {
-  const [markdown, setMarkdown] = useState<string>(INITIAL_MARKDOWN);
-  const [html, setHtml] = useState<string>(initialHtml);
+  const [markdown, setMarkdown] = useState<string>(() => getInitialMarkdown());
+  const [html, setHtml] = useState<string>(() =>
+    marked.parse(getInitialMarkdown(), { async: false }) as string
+  );
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     return (saved as 'light' | 'dark') || 'dark';
@@ -111,6 +117,11 @@ const App: React.FC = () => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Persist editor content so reloads restore the latest work.
+  useEffect(() => {
+    localStorage.setItem(MARKDOWN_STORAGE_KEY, markdown);
+  }, [markdown]);
 
   // Clean timeouts on unmount
   useEffect(() => {
